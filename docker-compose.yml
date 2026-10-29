@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app"]
+      interval: 2s
+      retries: 20
+
+  server:
+    build: { context: ., dockerfile: server/Dockerfile }
+    environment:
+      DATABASE_URL: postgresql://app:app@db:5432/app
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      NODE_ENV: production
+    depends_on:
+      db: { condition: service_healthy }
+
+  web:
+    build: { context: ., dockerfile: web/Dockerfile }
+    ports: ["8080:80"]
+    depends_on: [server]
+
+volumes:
+  pgdata:
